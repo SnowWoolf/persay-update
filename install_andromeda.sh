@@ -53,15 +53,7 @@ if [ ! -d "venv" ]; then
   python3 -m venv venv
 fi
 
-echo "[INFO] Обновление pip"
-venv/bin/pip install --upgrade pip
-
-if [ -f "requirements.txt" ]; then
-  echo "[INFO] Установка Python-зависимостей"
-  venv/bin/pip install -r requirements.txt
-else
-  echo "[WARN] requirements.txt не найден, зависимости не устанавливаются"
-fi
+echo "[INFO] Пропуск установки Python-зависимостей (requirements.txt отсутствует в репозитории)"
 
 if [ ! -f "$APP_DIR/config.yaml" ]; then
   echo "[INFO] config.yaml не найден, создаём пустой файл"
