@@ -4,13 +4,13 @@ set -e
 APP_DIR="/home/persay"
 CONFIG_FILE="$APP_DIR/config.yaml"
 DATA_FILE="$APP_DIR/data/data.db"
-BACKUP_DIR="/home/persay/.andromeda_backups"
+BACKUP_DIR="/home/persay/.persay_backups"
 TS=$(date +"%Y-%m-%d_%H-%M-%S")
 
 cd "$APP_DIR"
 
-echo "[INFO] Остановка Andromeda"
-systemctl stop andromeda
+echo "[INFO] Остановка PERSAY"
+systemctl stop persay
 
 if [ -f "$CONFIG_FILE" ]; then
   echo "[INFO] Резервное копирование config.yaml"
@@ -23,11 +23,11 @@ fi
 echo "[INFO] Временное удаление локального конфига и базы данных"
 
 if [ -f "$CONFIG_FILE" ]; then
-  mv "$CONFIG_FILE" /tmp/andromeda_config.yaml
+  mv "$CONFIG_FILE" /tmp/persay_config.yaml
 fi
 
 if [ -f "$DATA_FILE" ]; then
-  mv "$DATA_FILE" /tmp/andromeda_data.db
+  mv "$DATA_FILE" /tmp/persay_data.db
 fi
 
 echo "[INFO] Обновление кода из Git"
@@ -36,12 +36,12 @@ git reset --hard origin/master
 
 echo "[INFO] Восстановление локального конфига и базы данных"
 
-if [ -f /tmp/andromeda_config.yaml ]; then
-  mv /tmp/andromeda_config.yaml "$CONFIG_FILE"
+if [ -f /tmp/persay_config.yaml ]; then
+  mv /tmp/persay_config.yaml "$CONFIG_FILE"
 fi
 
-if [ -f /tmp/andromeda_data.db ]; then
-  mv /tmp/andromeda_data.db "$DATA_FILE"
+if [ -f /tmp/persay_data.db ]; then
+  mv /tmp/persay_data.db "$DATA_FILE"
 fi
 
 echo "[INFO] Обновление Python-зависимостей"
@@ -51,6 +51,6 @@ echo "[INFO] Очистка резервных копий старше 30 дне
 find "$BACKUP_DIR" -type f -mtime +30 -delete || true
 
 echo "[INFO] Запуск Andromeda"
-systemctl start andromeda
+systemctl start persay
 
 echo "[OK] Обновление завершено успешно"
