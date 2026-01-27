@@ -48,7 +48,9 @@ if [ ! -d ".git" ]; then
   echo "[INFO] Клонирование репозитория Andromeda"
   git clone "$REPO_URL" .
 else
-  echo "[INFO] Репозиторий уже существует, пропуск клонирования"
+  echo "[INFO] Обновление репозитория Andromeda"
+  git fetch origin
+  git reset --hard origin/master
 fi
 
 echo "[INFO] Создание виртуального окружения Python"
