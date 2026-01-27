@@ -6,6 +6,7 @@ curl -fsSL https://raw.githubusercontent.com/SnowWoolf/andromeda-update/main/ins
 
 
 **Обновление:**
+
 **1. Подключиться по SSH от имени root**
 
 **2. Скачать скрипт обновления:**
