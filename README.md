@@ -34,3 +34,30 @@ curl -fsSL https://raw.githubusercontent.com/SnowWoolf/persay-update/main/persay
 ```bash
 persay-update
 ```
+
+## Замена `config.yaml`
+
+### 📥 Копирование `config.yaml` с УМ на ПК
+
+Запустить **PowerShell**:
+
+    scp root@192.168.0.1:/home/persay/config.yaml C:\PersayConf
+
+Ввести пароль пользователя `root`.  
+Файл будет сохранён в:
+
+    C:\PersayConf\config.yaml
+
+---
+
+### 📤 Копирование `config.yaml` с ПК на УМ
+
+Запустить **PowerShell**:
+
+    scp C:/PersayConf/config.yaml root@192.168.0.1:/home/persay/
+
+Ввести пароль пользователя `root`.  
+Файл будет загружен в:
+
+    /home/persay/config.yaml
+
