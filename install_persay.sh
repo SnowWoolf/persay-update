@@ -4,10 +4,10 @@ set -e
 ### CONFIG ###
 APP_DIR="/home/persay"
 REPO_URL="https://github.com/s-nosonov-chernomor/andromeda_SMART.git"
-SERVICE_FILE="/etc/systemd/system/andromeda.service"
+SERVICE_FILE="/etc/systemd/system/persay.service"
 
-UPDATE_URL="https://raw.githubusercontent.com/SnowWoolf/andromeda-update/main/andromeda-update"
-UPDATE_BIN="/usr/local/bin/andromeda-update"
+UPDATE_URL="https://raw.githubusercontent.com/SnowWoolf/persay-update/main/persay-update"
+UPDATE_BIN="/usr/local/bin/persay-update"
 
 REQUIRED_PACKAGES="git curl python3 python3-venv python3-pip"
 ################
@@ -45,10 +45,10 @@ mkdir -p "$APP_DIR"
 cd "$APP_DIR"
 
 if [ ! -d ".git" ]; then
-  echo "[INFO] Клонирование репозитория Andromeda"
+  echo "[INFO] Клонирование репозитория PERSAY"
   git clone "$REPO_URL" .
 else
-  echo "[INFO] Обновление репозитория Andromeda"
+  echo "[INFO] Обновление репозитория PERSAY"
   git fetch origin
   git reset --hard origin/master
 fi
@@ -74,7 +74,7 @@ echo "[INFO] Установка systemd-сервиса"
 
 cat > "$SERVICE_FILE" <<EOF
 [Unit]
-Description=Andromeda SMART
+Description=PERSAY SMART
 After=network.target
 
 [Service]
@@ -92,19 +92,19 @@ echo "[INFO] Перезагрузка systemd"
 systemctl daemon-reexec
 systemctl daemon-reload
 
-echo "[INFO] Включение сервиса Andromeda"
-systemctl enable andromeda
+echo "[INFO] Включение сервиса PERSAY"
+systemctl enable persay
 
-echo "[INFO] Запуск сервиса Andromeda"
-systemctl restart andromeda
+echo "[INFO] Запуск сервиса PERSAY"
+systemctl restart persay
 
-echo "[INFO] Установка команды andromeda-update"
+echo "[INFO] Установка команды persay-update"
 if [ ! -x "$UPDATE_BIN" ]; then
   curl -fsSL "$UPDATE_URL" -o "$UPDATE_BIN"
   chmod +x "$UPDATE_BIN"
 else
-  echo "[INFO] andromeda-update уже установлен"
+  echo "[INFO] persay-update уже установлен"
 fi
 
-echo "[OK] Установка Andromeda SMART завершена успешно"
-echo "[OK] Для обновления используйте команду: andromeda-update"
+echo "[OK] Установка PERSAY SMART завершена успешно"
+echo "[OK] Для обновления используйте команду: persay-update"
