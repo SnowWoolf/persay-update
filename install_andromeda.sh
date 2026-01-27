@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+### CONFIG ###
 APP_DIR="/home/persay"
 REPO_URL="https://github.com/s-nosonov-chernomor/andromeda_SMART.git"
 SERVICE_FILE="/etc/systemd/system/andromeda.service"
@@ -9,10 +10,11 @@ UPDATE_URL="https://raw.githubusercontent.com/SnowWoolf/andromeda-update/main/an
 UPDATE_BIN="/usr/local/bin/andromeda-update"
 
 REQUIRED_PACKAGES="git curl python3 python3-venv python3-pip"
+################
 
 echo "[INFO] Проверка системы"
 
-# Проверка на root
+# Проверка root
 if [ "$EUID" -ne 0 ]; then
   echo "[ERROR] Скрипт должен быть запущен от root"
   exit 1
@@ -27,12 +29,13 @@ fi
 
 echo "[INFO] Проверка и установка необходимых пакетов"
 
+apt update
+
 for pkg in $REQUIRED_PACKAGES; do
   if dpkg -s "$pkg" >/dev/null 2>&1; then
     echo "[INFO] Пакет уже установлен: $pkg"
   else
     echo "[INFO] Установка пакета: $pkg"
-    apt update
     apt install -y "$pkg"
   fi
 done
@@ -53,12 +56,15 @@ if [ ! -d "venv" ]; then
   python3 -m venv venv
 fi
 
-echo "[INFO] Установка Python-зависимостей"
-venv/bin/pip install --upgrade pip
-venv/bin/pip install -r requirements.txt
+if [ -f "requirements.txt" ]; then
+  echo "[INFO] Установка Python-зависимостей"
+  venv/bin/pip install -r requirements.txt
+else
+  echo "[WARN] requirements.txt не найден, зависимости не устанавливаются"
+fi
 
 if [ ! -f "$APP_DIR/config.yaml" ]; then
-  echo "[INFO] config.yaml не найден, создаём пустой файл"
+  echo "[INFO] config.yaml не найден, создаем пустой файл"
   touch "$APP_DIR/config.yaml"
 fi
 
