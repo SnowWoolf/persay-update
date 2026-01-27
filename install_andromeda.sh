@@ -4,31 +4,37 @@ set -e
 APP_DIR="/home/persay"
 REPO_URL="https://github.com/s-nosonov-chernomor/andromeda_SMART.git"
 SERVICE_FILE="/etc/systemd/system/andromeda.service"
+UPDATE_URL="https://raw.githubusercontent.com/SnowWoolf/andromeda-update/main/andromeda-update"
+UPDATE_BIN="/usr/local/bin/andromeda-update"
 
-echo "[INFO] Install system packages"
+echo "[INFO] Установка системных пакетов"
 apt update
-apt install -y git python3 python3-venv python3-pip
+apt install -y git curl python3 python3-venv python3-pip
 
-echo "[INFO] Create application directory"
+echo "[INFO] Создание директории приложения"
 mkdir -p "$APP_DIR"
 cd "$APP_DIR"
 
-echo "[INFO] Clone repository"
-git clone "$REPO_URL" .
- 
-echo "[INFO] Create virtual environment"
+if [ ! -d ".git" ]; then
+  echo "[INFO] Клонирование репозитория"
+  git clone "$REPO_URL" .
+else
+  echo "[INFO] Репозиторий уже существует, пропуск клонирования"
+fi
+
+echo "[INFO] Создание виртуального окружения"
 python3 -m venv venv
 
-echo "[INFO] Install python dependencies"
+echo "[INFO] Установка Python-зависимостей"
 venv/bin/pip install --upgrade pip
 venv/bin/pip install -r requirements.txt
 
 if [ ! -f "$APP_DIR/config.yaml" ]; then
-  echo "[INFO] config.yaml not found, create empty file"
+  echo "[INFO] config.yaml не найден, создаём пустой"
   touch "$APP_DIR/config.yaml"
 fi
 
-echo "[INFO] Create systemd service"
+echo "[INFO] Установка systemd-сервиса"
 
 cat > "$SERVICE_FILE" <<EOF
 [Unit]
@@ -46,14 +52,11 @@ Environment=PYTHONUNBUFFERED=1
 WantedBy=multi-user.target
 EOF
 
-echo "[INFO] Reload systemd"
+echo "[INFO] Перезагрузка systemd"
 systemctl daemon-reexec
 systemctl daemon-reload
 
-echo "[INFO] Enable Andromeda service"
+echo "[INFO] Включение сервиса Andromeda"
 systemctl enable andromeda
 
-echo "[INFO] Start Andromeda service"
-systemctl start andromeda
-
-echo "[OK] Andromeda installation completed"
+ech
