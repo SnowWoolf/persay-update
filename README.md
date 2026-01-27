@@ -35,6 +35,8 @@ curl -fsSL https://raw.githubusercontent.com/SnowWoolf/persay-update/main/persay
 persay-update
 ```
 
+---
+
 ## Замена `config.yaml`
 
 ### 📥 Копирование `config.yaml` с УМ на ПК
