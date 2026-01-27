@@ -50,7 +50,7 @@ echo "[INFO] Обновление Python-зависимостей"
 echo "[INFO] Очистка резервных копий старше 30 дней"
 find "$BACKUP_DIR" -type f -mtime +30 -delete || true
 
-echo "[INFO] Запуск Andromeda"
+echo "[INFO] Запуск PERSAY"
 systemctl start persay
 
 echo "[OK] Обновление завершено успешно"
