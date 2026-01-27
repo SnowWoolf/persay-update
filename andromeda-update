@@ -9,18 +9,18 @@ TS=$(date +"%Y-%m-%d_%H-%M-%S")
 
 cd "$APP_DIR"
 
-echo "[INFO] Ostanovka Andromeda"
+echo "[INFO] Остановка Andromeda"
 systemctl stop andromeda
 
 if [ -f "$CONFIG_FILE" ]; then
-  echo "[INFO] Backup config.yaml"
+  echo "[INFO] Резервное копирование config.yaml"
   mkdir -p "$BACKUP_DIR"
   cp "$CONFIG_FILE" "$BACKUP_DIR/config_$TS.yaml"
 else
-  echo "[WARN] config.yaml not found, skip backup"
+  echo "[WARN] config.yaml не найден, пропускаем бэкап"
 fi
 
-echo "[INFO] Temporarily remove local config and database"
+echo "[INFO] Временное удаление локального конфига и базы данных"
 
 if [ -f "$CONFIG_FILE" ]; then
   mv "$CONFIG_FILE" /tmp/andromeda_config.yaml
@@ -30,11 +30,11 @@ if [ -f "$DATA_FILE" ]; then
   mv "$DATA_FILE" /tmp/andromeda_data.db
 fi
 
-echo "[INFO] Update code from Git"
+echo "[INFO] Обновление кода из Git"
 git fetch origin
 git reset --hard origin/master
 
-echo "[INFO] Restore local config and database"
+echo "[INFO] Восстановление локального конфига и базы данных"
 
 if [ -f /tmp/andromeda_config.yaml ]; then
   mv /tmp/andromeda_config.yaml "$CONFIG_FILE"
@@ -44,13 +44,13 @@ if [ -f /tmp/andromeda_data.db ]; then
   mv /tmp/andromeda_data.db "$DATA_FILE"
 fi
 
-echo "[INFO] Obnovlenie Python zavisimostei"
-$APP_DIR/venv/bin/pip install -r requirements.txt
+echo "[INFO] Обновление Python-зависимостей"
+"$APP_DIR/venv/bin/pip" install -r requirements.txt
 
-echo "[INFO] Ochistka backupov starshe 30 dnei"
-find /home/persay/.andromeda_backups -type f -mtime +30 -delete || true
+echo "[INFO] Очистка резервных копий старше 30 дней"
+find "$BACKUP_DIR" -type f -mtime +30 -delete || true
 
-echo "[INFO] Zapusk Andromeda"
+echo "[INFO] Запуск Andromeda"
 systemctl start andromeda
 
-echo "[OK] Obnovlenie zaversheno uspeshno"
+echo "[OK] Обновление завершено успешно"
