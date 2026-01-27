@@ -9,5 +9,5 @@ curl -fsSL https://raw.githubusercontent.com/SnowWoolf/andromeda-update/main/and
 
 **3. Запустить обновление:**
 ```bash
-   andromeda-update
+sudo andromeda-update
 ```
