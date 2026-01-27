@@ -1,15 +1,13 @@
-**1. Положить скрипт обновления в /usr/local/bin**
+**1. Подключиться по SSH от имени root**
+**2. Выполнить команду:**
 
-   sudo nano /usr/local/bin/andromeda-update -> вставить код
+```bash
+curl -fsSL https://raw.githubusercontent.com/SnowWoolf/andromeda-update/main/andromeda-update \
+-o /usr/local/bin/andromeda-update && chmod +x /usr/local/bin/andromeda-update
+```
 
-   или загрузить из C:/PersayFiles командой в PowerShell:
-   
-   scp C:/PersayFiles/andromeda-update root@192.168.0.1:/usr/local/bin/
-
-**2. Сделать файл исполняемым:**
-
-   chmod +x /usr/local/bin/andromeda-update
 
 **3. Запустить обновление:**
-
+```bash
    andromeda-update
+```
