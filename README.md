@@ -8,7 +8,7 @@
 
 Подключиться по SSH и выполнить 1 команду:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/SnowWoolf/andromeda-update/main/install_andromeda.sh | bash
+curl -fsSL https://raw.githubusercontent.com/SnowWoolf/persay-update/main/install_persay.sh | bash
 ```
 
 ---
@@ -17,14 +17,14 @@ curl -fsSL https://raw.githubusercontent.com/SnowWoolf/andromeda-update/main/ins
 
 ### 1. Скачивание скрипта обновления
 
-Этот шаг необходим **только если команда `andromeda-update` не работает**.
+Этот шаг необходим **только если команда `persay-update` не работает**.
 
 Если первоначальная установка выполнялась скриптом выше  
 или система уже обновлялась ранее, выполнять этот шаг **не нужно**.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/SnowWoolf/andromeda-update/main/andromeda-update \
--o /usr/local/bin/andromeda-update && chmod +x /usr/local/bin/andromeda-update
+curl -fsSL https://raw.githubusercontent.com/SnowWoolf/persay-update/main/persay-update \
+-o /usr/local/bin/persay-update && chmod +x /usr/local/bin/persay-update
 ```
 
 ---
@@ -32,5 +32,5 @@ curl -fsSL https://raw.githubusercontent.com/SnowWoolf/andromeda-update/main/and
 ### 2. Запуск обновления
 
 ```bash
-andromeda-update
+persay-update
 ```
