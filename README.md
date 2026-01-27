@@ -4,7 +4,7 @@
 
    или загрузить из C:/PersayFiles командой в PowerShell:
    
-   scp C:/PersayConf/andromeda-update root@192.168.0.1:/usr/local/bin/andromeda-update
+   scp C:/PersayFiles/andromeda-update root@192.168.0.1:/usr/local/bin/andromeda-update
 
 **2. Сделать файл исполняемым:**
 
