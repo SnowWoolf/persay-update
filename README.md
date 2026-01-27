@@ -50,8 +50,6 @@ persay-update
 
     C:\PersayConf\config.yaml
 
----
-
 ### 📤 Копирование `config.yaml` с ПК на УМ
 
 Запустить **PowerShell**:
