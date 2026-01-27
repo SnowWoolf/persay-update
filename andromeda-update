@@ -1,0 +1,56 @@
+#!/bin/bash
+set -e
+
+APP_DIR="/home/persay"
+CONFIG_FILE="$APP_DIR/config.yaml"
+DATA_FILE="$APP_DIR/data/data.db"
+BACKUP_DIR="/home/persay/.andromeda_backups"
+TS=$(date +"%Y-%m-%d_%H-%M-%S")
+
+cd "$APP_DIR"
+
+echo "[INFO] Ostanovka Andromeda"
+systemctl stop andromeda
+
+if [ -f "$CONFIG_FILE" ]; then
+  echo "[INFO] Backup config.yaml"
+  mkdir -p "$BACKUP_DIR"
+  cp "$CONFIG_FILE" "$BACKUP_DIR/config_$TS.yaml"
+else
+  echo "[WARN] config.yaml not found, skip backup"
+fi
+
+echo "[INFO] Temporarily remove local config and database"
+
+if [ -f "$CONFIG_FILE" ]; then
+  mv "$CONFIG_FILE" /tmp/andromeda_config.yaml
+fi
+
+if [ -f "$DATA_FILE" ]; then
+  mv "$DATA_FILE" /tmp/andromeda_data.db
+fi
+
+echo "[INFO] Update code from Git"
+git fetch origin
+git reset --hard origin/master
+
+echo "[INFO] Restore local config and database"
+
+if [ -f /tmp/andromeda_config.yaml ]; then
+  mv /tmp/andromeda_config.yaml "$CONFIG_FILE"
+fi
+
+if [ -f /tmp/andromeda_data.db ]; then
+  mv /tmp/andromeda_data.db "$DATA_FILE"
+fi
+
+echo "[INFO] Obnovlenie Python zavisimostei"
+$APP_DIR/venv/bin/pip install -r requirements.txt
+
+echo "[INFO] Ochistka backupov starshe 30 dnei"
+find /home/persay/.andromeda_backups -type f -mtime +30 -delete || true
+
+echo "[INFO] Zapusk Andromeda"
+systemctl start andromeda
+
+echo "[OK] Obnovlenie zaversheno uspeshno"
