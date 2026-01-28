@@ -54,7 +54,7 @@ persay-update
 
 Запустить **PowerShell**:
 
-    scp C:/PersayConf/config.yaml root@192.168.0.1:/home/persay/
+    scp C:\PersayConf\config.yaml root@192.168.0.1:/home/persay/
 
 Ввести пароль пользователя `root`.  
 Файл будет загружен в:
