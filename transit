@@ -1,9 +1,13 @@
 #!/bin/bash
 
+PORT=777
+BAUD=115200
+PARITY="none"
+STOPBITS=1
+
 RUNDIR="/run/transit"
-PIDFILE="$RUNDIR/pid"
+PIDFILE="$RUNDIR/mbusd.pid"
 DEVFILE="$RUNDIR/dev"
-LOG="/var/log/transit.log"
 
 SERVICES=(
   agrosmart_web
@@ -13,7 +17,6 @@ SERVICES=(
 )
 
 mkdir -p "$RUNDIR"
-touch "$LOG"
 
 usage() {
   echo "Usage:"
@@ -32,16 +35,14 @@ get_ip() {
 }
 
 stop_services() {
-  echo "Остановка сервисов..."
   for s in "${SERVICES[@]}"; do
-    systemctl stop "$s" 2>/dev/null && echo "  stopped $s"
+    systemctl stop "$s" 2>/dev/null
   done
 }
 
 start_services() {
-  echo "Запуск сервисов..."
   for s in "${SERVICES[@]}"; do
-    systemctl start "$s" 2>/dev/null && echo "  started $s"
+    systemctl start "$s" 2>/dev/null
   done
 }
 
@@ -56,12 +57,20 @@ start_transit() {
   stop_services
 
   echo "$DEV" > "$DEVFILE"
-  echo "$(date) START $DEV" >> "$LOG"
+
+  mbusd -d /dev/$DEV -b $BAUD -P $PARITY -s $STOPBITS -p $PORT &
+  echo $! > "$PIDFILE"
+
+  sleep 1
+
+  if ! kill -0 $(cat "$PIDFILE") 2>/dev/null; then
+    echo "Ошибка запуска mbusd"
+    exit 1
+  fi
 
   IP=$(get_ip)
   echo "Включен транзитный режим RS485 на /dev/$DEV"
-  echo "Подключение с клиента:"
-  echo "  socat PTY,link=/tmp/ttyV0,raw EXEC:'ssh root@$IP transit-connect'"
+  echo "Доступ по $IP:$PORT"
 }
 
 stop_transit() {
@@ -70,11 +79,10 @@ stop_transit() {
     exit 0
   fi
 
-  kill "$(cat $PIDFILE)" 2>/dev/null
+  kill $(cat "$PIDFILE") 2>/dev/null
   rm -f "$PIDFILE" "$DEVFILE"
 
   start_services
-  echo "$(date) STOP" >> "$LOG"
   echo "Транзит остановлен"
 }
 
@@ -86,21 +94,7 @@ status_transit() {
 
   DEV=$(cat "$DEVFILE")
   IP=$(get_ip)
-  echo "Включен транзитный режим RS485 на /dev/$DEV. Доступ по $IP"
-}
-
-connect_mode() {
-  if [[ ! -f "$DEVFILE" ]]; then
-    echo "Transit not active"
-    exit 1
-  fi
-
-  DEV=$(cat "$DEVFILE")
-
-  echo $$ > "$PIDFILE"
-
-  # реальный мост байтов
-  exec socat - "/dev/$DEV,raw,echo=0"
+  echo "Включен транзитный режим RS485 на /dev/$DEV. Доступ по $IP:$PORT"
 }
 
 case "$1" in
@@ -112,9 +106,6 @@ case "$1" in
     ;;
   -status)
     status_transit
-    ;;
-  transit-connect)
-    connect_mode
     ;;
   *)
     usage
