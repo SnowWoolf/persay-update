@@ -1,7 +1,9 @@
 #!/bin/bash
 
 PORT=777
-LOCKDIR="/run/transit"
+RUNDIR="/run/transit"
+LOGFILE="/var/log/transit.log"
+
 SERVICES=(
   agrosmart_web
   agrosmart_sync
@@ -9,7 +11,8 @@ SERVICES=(
   persay
 )
 
-mkdir -p "$LOCKDIR"
+mkdir -p "$RUNDIR"
+touch "$LOGFILE"
 
 usage() {
   echo "Usage:"
@@ -49,7 +52,7 @@ get_ip() {
 
 start_transit() {
   DEV="$1"
-  PIDFILE="$LOCKDIR/${DEV}.pid"
+  PIDFILE="$RUNDIR/${DEV}.pid"
 
   if [[ -f "$PIDFILE" ]]; then
     echo "Транзит уже активен для $DEV"
@@ -59,7 +62,12 @@ start_transit() {
   stop_services
 
   echo "Запуск socat..."
-  socat TCP-LISTEN:$PORT,reuseaddr,fork FILE:/dev/$DEV,raw,echo=0,b115200 &
+  echo "$(date) START /dev/$DEV" >> "$LOGFILE"
+
+  socat TCP-LISTEN:$PORT,reuseaddr,fork \
+        FILE:/dev/$DEV,raw,echo=0,b115200 \
+        2>>"$LOGFILE" &
+
   SOCAT_PID=$!
   echo "$SOCAT_PID" > "$PIDFILE"
 
@@ -70,11 +78,15 @@ start_transit() {
 
 stop_transit() {
   FOUND=0
-  for f in "$LOCKDIR"/*.pid; do
+  for f in "$RUNDIR"/*.pid; do
     [[ -e "$f" ]] || continue
+    DEV=$(basename "$f" .pid)
     PID=$(cat "$f")
+
     kill "$PID" 2>/dev/null
     rm -f "$f"
+
+    echo "$(date) STOP /dev/$DEV" >> "$LOGFILE"
     FOUND=1
   done
 
@@ -89,7 +101,7 @@ stop_transit() {
 
 status_transit() {
   FOUND=0
-  for f in "$LOCKDIR"/*.pid; do
+  for f in "$RUNDIR"/*.pid; do
     [[ -e "$f" ]] || continue
     DEV=$(basename "$f" .pid)
     IP=$(get_ip)
