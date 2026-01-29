@@ -124,6 +124,7 @@ socat TCP:<IP_СЕРВЕРА>:777 -
 
 ## Возможные проблемы
 
+
 ### Ошибка SSL при загрузке скрипта
 
 Если `wget` пишет:
@@ -158,6 +159,13 @@ lsof /dev/ttyUSB3
 ```bash
 sudo pkill socat
 sudo rm -rf /run/transit/*
+```
+
+---
+
+### Где смотреть логи
+```text
+tail -f /var/log/transit.log
 ```
 
 ---
