@@ -4,11 +4,40 @@ LOCKDIR="/var/lock/transit"
 RUNDIR="/run/transit"
 PORT=777
 
+SERVICES=(
+  agrosmart_web
+  agrosmart_sync
+  agrosmart_mix
+  persay
+)
+
 mkdir -p "$LOCKDIR" "$RUNDIR"
 
 usage() {
   echo "transit -ttyUSBX | -status | -stop"
   exit 1
+}
+
+stop_services() {
+  echo "Остановка сервисов..."
+  for S in "${SERVICES[@]}"; do
+    if systemctl list-unit-files | grep -q "^$S.service"; then
+      systemctl stop "$S" 2>/dev/null
+      systemctl disable "$S" 2>/dev/null
+      echo "  stopped $S"
+    fi
+  done
+}
+
+start_services() {
+  echo "Запуск сервисов..."
+  for S in "${SERVICES[@]}"; do
+    if systemctl list-unit-files | grep -q "^$S.service"; then
+      systemctl enable "$S" 2>/dev/null
+      systemctl start "$S" 2>/dev/null
+      echo "  started $S"
+    fi
+  done
 }
 
 if [[ $# -eq 0 ]]; then usage; fi
@@ -25,19 +54,17 @@ case "$1" in
       exit 1
     fi
 
-    # Останавливаем основной сервис
-    systemctl stop persay
-    systemctl stop agrosmart_sync
+    stop_services
 
     # Запускаем socat под flock
     flock "$LOCK" \
       socat TCP-LISTEN:$PORT,reuseaddr,fork \
             FILE:$DEV,raw,echo=0,b115200 &
-    
+
     echo $! > "$PIDFILE"
 
     IP=$(echo $SSH_CONNECTION | awk '{print $3}')
-    echo "Включен транзитный режим RS485 на //$DEV"
+    echo "Включен транзитный режим RS485 на $DEV"
     echo "Доступ по $IP:$PORT"
     ;;
 
@@ -46,7 +73,7 @@ case "$1" in
       for f in $RUNDIR/*.pid; do
         DEV=$(basename "$f" .pid)
         IP=$(echo $SSH_CONNECTION | awk '{print $3}')
-        echo "Включен транзитный режим RS485 на //$DEV. Доступ по $IP:$PORT"
+        echo "Включен транзитный режим RS485 на /dev/$DEV. Доступ по $IP:$PORT"
       done
     else
       echo "Транзит не активен"
@@ -59,8 +86,7 @@ case "$1" in
       rm -f "$f"
     done
 
-     systemctl start persay
-     systemctl start agrosmart_sync
+    start_services
     echo "Транзит отключен, порт освобожден"
     ;;
 
