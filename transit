@@ -5,8 +5,8 @@ BAUD=115200
 MODE="8N1"
 
 RUNDIR="/run/transit"
-CFG="/etc/ser2net.yaml"
 PIDFILE="$RUNDIR/active"
+CFG="/etc/ser2net.yaml"
 LOG="/var/log/transit.log"
 
 SERVICES=(
@@ -36,15 +36,39 @@ get_ip() {
 }
 
 stop_services() {
+  echo "Остановка сервисов..."
   for s in "${SERVICES[@]}"; do
-    systemctl stop "$s" 2>/dev/null
+    if systemctl list-unit-files | grep -q "^$s.service"; then
+      systemctl stop "$s" 2>/dev/null
+      echo "  stopped $s"
+    fi
   done
 }
 
 start_services() {
+  echo "Запуск сервисов..."
   for s in "${SERVICES[@]}"; do
-    systemctl start "$s" 2>/dev/null
+    if systemctl list-unit-files | grep -q "^$s.service"; then
+      systemctl start "$s" 2>/dev/null
+      echo "  started $s"
+    fi
   done
+}
+
+write_config() {
+  DEV="$1"
+
+  cat > "$CFG" <<EOF
+%YAML 1.1
+---
+
+connection: rs485
+  accepter: tcp,$PORT
+  connector: serialdev,/dev/$DEV,$BAUD$MODE,local
+  options:
+    max-connections: 1
+    kickolduser: true
+EOF
 }
 
 start_transit() {
@@ -58,20 +82,16 @@ start_transit() {
   stop_services
   systemctl stop ser2net 2>/dev/null
 
-  cat > "$CFG" <<EOF
-%YAML 1.1
----
+  write_config "$DEV"
 
-connection: &rs485
-  accepter: tcp,$PORT
-  connector: serialdev,/dev/$DEV,$BAUD$MODE,local
-  options:
-    max-connections: 1
-    kickolduser: true
-    nodelay: true
-EOF
-
+  echo "Запуск ser2net..."
   systemctl restart ser2net
+
+  if ! systemctl is-active --quiet ser2net; then
+    echo "Ошибка запуска ser2net!"
+    journalctl -u ser2net -n 20
+    exit 1
+  fi
 
   echo "$DEV" > "$PIDFILE"
   echo "$(date) START $DEV" >> "$LOG"
@@ -109,16 +129,22 @@ status_transit() {
   echo "Включен транзитный режим RS485 на /dev/$DEV. Доступ по $IP:$PORT"
 }
 
+# ---- MAIN ----
+
+if [[ $# -eq 0 ]]; then
+  usage
+fi
+
 case "$1" in
   -ttyUSB*)
     DEV="${1#-}"
     start_transit "$DEV"
     ;;
-  -stop)
-    stop_transit
-    ;;
   -status)
     status_transit
+    ;;
+  -stop)
+    stop_transit
     ;;
   *)
     usage
