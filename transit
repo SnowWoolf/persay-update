@@ -1,123 +1,46 @@
-#!/bin/bash
+#!/bin/sh
 
-PORT=777
-RUNDIR="/run/transit"
-CONF="/tmp/ser2net-transit.yaml"
+# ===== ПАРАМЕТР ПОРТА =====
+TTY="$1"
 
-SERVICES=(
-  agrosmart_web
-  agrosmart_sync
-  agrosmart_mix
-  persay
-)
-
-mkdir -p "$RUNDIR"
-
-usage() {
-  echo "Использование:"
-  echo "  transit -ttyUSBX   включить транзит"
-  echo "  transit -status    статус"
-  echo "  transit -stop      выключить транзит"
-  exit 1
-}
-
-get_ip() {
-  if [[ -n "$SSH_CONNECTION" ]]; then
-    echo "$SSH_CONNECTION" | awk '{print $3}'
-  else
-    hostname -I | awk '{print $1}'
-  fi
-}
-
-stop_services() {
-  echo "Остановка сервисов..."
-  for s in "${SERVICES[@]}"; do
-    if systemctl list-unit-files | grep -q "^$s"; then
-      systemctl stop "$s" 2>/dev/null
-      systemctl disable "$s" 2>/dev/null
-      echo "  stopped $s"
-    fi
-  done
-}
-
-start_services() {
-  echo "Запуск сервисов..."
-  for s in "${SERVICES[@]}"; do
-    if systemctl list-unit-files | grep -q "^$s"; then
-      systemctl enable "$s" 2>/dev/null
-      systemctl start "$s" 2>/dev/null
-      echo "  started $s"
-    fi
-  done
-}
-
-start_transit() {
-  DEV="$1"
-  PIDFILE="$RUNDIR/transit.pid"
-
-  if [[ -f "$PIDFILE" ]]; then
-    echo "Транзит уже включен"
+if [ -z "$TTY" ]; then
+    echo "Использование: transit -ttyUSB3"
     exit 1
-  fi
+fi
 
-  stop_services
+# убираем лишнее
+TTY="${TTY#-}"
+TTY="${TTY#/dev/}"
+TTY="/dev/$TTY"
 
-  cat > "$CONF" <<EOF
-connection: &transit
-  accepter: tcp,$PORT
-  connector: serialdev,$DEV,115200n81,local
-EOF
+# ===== СЕРВИСЫ КОТОРЫЕ МОЖНО ОСТАНАВЛИВАТЬ =====
+SERVICES="
+agrosmart_web
+agrosmart_sync
+agrosmart_mix
+persay
+"
 
-  echo "Запуск ser2net..."
-  ser2net -c "$CONF" -d &
-  echo $! > "$PIDFILE"
+echo "Остановка сервисов..."
 
-  IP=$(get_ip)
-  echo "Включен транзитный режим RS485 на $DEV"
-  echo "Доступ по $IP:$PORT"
-}
+for S in $SERVICES; do
+    systemctl stop "$S" 2>/dev/null
+done
 
-stop_transit() {
-  PIDFILE="$RUNDIR/transit.pid"
+# ===== УБИВАЕМ СТАРЫЙ MBUSD =====
+pkill mbusd 2>/dev/null
+sleep 1
 
-  if [[ ! -f "$PIDFILE" ]]; then
-    echo "Транзит не активен"
-    exit 0
-  fi
+echo "Запуск mbusd..."
 
-  kill "$(cat $PIDFILE)" 2>/dev/null
-  rm -f "$PIDFILE"
-  rm -f "$CONF"
+# ===== ЗАПУСК MBUSD =====
+# 115200 8E1 — КРИТИЧНО!
+mbusd -p "$TTY" -s 115200 -m 8E1 -t 777 >/dev/null 2>&1 &
 
-  start_services
-  echo "Транзит отключен, порт освобожден"
-}
+sleep 1
 
-status_transit() {
-  PIDFILE="$RUNDIR/transit.pid"
+# ===== IP =====
+IP=$(hostname -I | awk '{print $1}')
 
-  if [[ -f "$PIDFILE" ]]; then
-    IP=$(get_ip)
-    echo "Включен транзитный режим RS485. Доступ по $IP:$PORT"
-  else
-    echo "Транзит не активен"
-  fi
-}
-
-[[ $# -eq 0 ]] && usage
-
-case "$1" in
-  -ttyUSB*)
-    DEV="/dev/${1#-}"
-    start_transit "$DEV"
-    ;;
-  -status)
-    status_transit
-    ;;
-  -stop)
-    stop_transit
-    ;;
-  *)
-    usage
-    ;;
-esac
+echo "Включен транзитный режим RS485 на $TTY"
+echo "Доступ по $IP:777"
