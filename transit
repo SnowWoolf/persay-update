@@ -1,112 +1,70 @@
 #!/bin/bash
 
+LOCKDIR="/var/lock/transit"
+RUNDIR="/run/transit"
 PORT=777
-STATE_FILE="/tmp/transit.state"
-PID_FILE="/tmp/transit.pid"
 
-SERVICES=(
-  agrosmart_web
-  agrosmart_sync
-  agrosmart_mix
-  persay
-  andromeda
-)
+mkdir -p "$LOCKDIR" "$RUNDIR"
 
-stop_services() {
-  echo "Остановка сервисов..."
-  for S in "${SERVICES[@]}"; do
-    if systemctl list-unit-files | grep -q "^$S.service"; then
-      systemctl stop "$S" 2>/dev/null
-      echo "  stopped $S"
-    fi
-  done
+usage() {
+  echo "transit -ttyUSBX | -status | -stop"
+  exit 1
 }
 
-start_services() {
-  echo "Запуск сервисов..."
-  for S in "${SERVICES[@]}"; do
-    if systemctl list-unit-files | grep -q "^$S.service"; then
-      systemctl start "$S" 2>/dev/null
-      echo "  started $S"
-    fi
-  done
-}
-
-get_ip() {
-  who | awk '{print $5}' | tr -d '()' | head -n1
-}
-
-status() {
-  if [ -f "$STATE_FILE" ]; then
-    DEV=$(cat "$STATE_FILE")
-    IP=$(get_ip)
-    echo "Включен транзитный режим RS485 на $DEV. Доступ по $IP:$PORT"
-  else
-    echo "Транзит не активен"
-  fi
-}
-
-stop_transit() {
-  if [ ! -f "$STATE_FILE" ]; then
-    echo "Транзит не активен"
-    exit 0
-  fi
-
-  if [ -f "$PID_FILE" ]; then
-    kill "$(cat $PID_FILE)" 2>/dev/null
-    rm -f "$PID_FILE"
-  fi
-
-  rm -f "$STATE_FILE"
-
-  start_services
-  echo "Транзит отключен"
-}
-
-start_transit() {
-  DEV="/dev/$1"
-
-  if [ ! -e "$DEV" ]; then
-    echo "Устройство $DEV не найдено"
-    exit 1
-  fi
-
-  if [ -f "$STATE_FILE" ]; then
-    echo "Транзит уже активен"
-    status
-    exit 0
-  fi
-
-  stop_services
-
-  echo "$DEV" > "$STATE_FILE"
-
-  # запуск mbusd в фоне
-  mbusd -p "$DEV" -s 115200 -t $PORT &
-  echo $! > "$PID_FILE"
-
-  sleep 1
-
-  IP=$(get_ip)
-  echo "Включен транзитный режим RS485 на $DEV"
-  echo "Доступ по $IP:$PORT"
-}
+if [[ $# -eq 0 ]]; then usage; fi
 
 case "$1" in
+
+  -ttyUSB*)
+    DEV="/dev/${1#-}"
+    LOCK="$LOCKDIR/${1#-}.lock"
+    PIDFILE="$RUNDIR/${1#-}.pid"
+
+    if [[ -f "$PIDFILE" ]]; then
+      echo "Транзит уже включен"
+      exit 1
+    fi
+
+    # Останавливаем основной сервис
+    systemctl stop persay
+    systemctl stop agrosmart_sync
+
+    # Запускаем socat под flock
+    flock "$LOCK" \
+      socat TCP-LISTEN:$PORT,reuseaddr,fork \
+            FILE:$DEV,raw,echo=0,b115200 &
+    
+    echo $! > "$PIDFILE"
+
+    IP=$(echo $SSH_CONNECTION | awk '{print $3}')
+    echo "Включен транзитный режим RS485 на //$DEV"
+    echo "Доступ по $IP:$PORT"
+    ;;
+
   -status)
-    status
+    if ls $RUNDIR/*.pid &>/dev/null; then
+      for f in $RUNDIR/*.pid; do
+        DEV=$(basename "$f" .pid)
+        IP=$(echo $SSH_CONNECTION | awk '{print $3}')
+        echo "Включен транзитный режим RS485 на //$DEV. Доступ по $IP:$PORT"
+      done
+    else
+      echo "Транзит не активен"
+    fi
     ;;
+
   -stop)
-    stop_transit
+    for f in $RUNDIR/*.pid; do
+      kill "$(cat $f)" 2>/dev/null
+      rm -f "$f"
+    done
+
+     systemctl start persay
+     systemctl start agrosmart_sync
+    echo "Транзит отключен, порт освобожден"
     ;;
-  -tty*)
-    DEV_NAME="${1#-}"
-    start_transit "$DEV_NAME"
-    ;;
+
   *)
-    echo "Использование:"
-    echo "  transit -ttyUSB3   включить транзит"
-    echo "  transit -status    статус"
-    echo "  transit -stop      выключить транзит"
+    usage
     ;;
 esac
