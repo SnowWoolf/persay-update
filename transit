@@ -19,6 +19,9 @@ done
 pkill socat 2>/dev/null
 sleep 1
 
+echo "Настройка порта..."
+stty -F "$TTY" 115200 cs8 -cstopb -parenb -ixon -ixoff -crtscts
+
 echo "Запуск socat..."
 
 socat TCP-LISTEN:$PORT,reuseaddr,fork \
