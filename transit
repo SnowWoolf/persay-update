@@ -1,9 +1,7 @@
 #!/bin/bash
 
 PORT=777
-TTY="$1"
-
-TTY="${TTY#-}"
+TTY="${1#-}"
 TTY="/dev/$TTY"
 
 SERVICES=(
@@ -12,11 +10,6 @@ SERVICES=(
   agrosmart_mix
   persay
 )
-
-if ! command -v socat >/dev/null; then
-  echo "socat не установлен!"
-  exit 1
-fi
 
 echo "Остановка сервисов..."
 for S in "${SERVICES[@]}"; do
@@ -29,14 +22,13 @@ sleep 1
 echo "Запуск socat..."
 
 socat TCP-LISTEN:$PORT,reuseaddr,fork \
-      FILE:$TTY,raw,echo=0,b115200,cs8,parenb,parodd=0,cstopb=0 \
+      FILE:$TTY,raw,echo=0,b115200 \
       >/tmp/socat.log 2>&1 &
 
 sleep 1
 
 if ! ss -ltnp | grep -q $PORT; then
   echo "socat не запустился!"
-  echo "Лог:"
   cat /tmp/socat.log
   exit 1
 fi
