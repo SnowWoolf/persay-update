@@ -9,6 +9,7 @@ SERVICES=(
   agrosmart_sync
   agrosmart_mix
   persay
+  andromeda
 )
 
 stop_services() {
