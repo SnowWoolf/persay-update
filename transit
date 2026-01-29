@@ -56,10 +56,13 @@ case "$1" in
 
     stop_services
 
+    # ЖЕСТКАЯ НАСТРОЙКА ПОРТА RS485 (115200 8N1 RAW)
+    stty -F "$DEV" 115200 cs8 -cstopb -parenb -ixon -ixoff -crtscts raw -echo
+
     # Запускаем socat под flock
     flock "$LOCK" \
       socat TCP-LISTEN:$PORT,reuseaddr,fork \
-            FILE:$DEV,raw,echo=0,b115200 &
+            FILE:$DEV,raw,echo=0,nonblock &
 
     echo $! > "$PIDFILE"
 
