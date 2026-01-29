@@ -1,8 +1,13 @@
 #!/bin/bash
 
 PORT=777
+BAUD=115200
+MODE="8N1"
+
 RUNDIR="/run/transit"
-LOGFILE="/var/log/transit.log"
+CFG="/etc/ser2net.yaml"
+PIDFILE="$RUNDIR/active"
+LOG="/var/log/transit.log"
 
 SERVICES=(
   agrosmart_web
@@ -12,34 +17,14 @@ SERVICES=(
 )
 
 mkdir -p "$RUNDIR"
-touch "$LOGFILE"
+touch "$LOG"
 
 usage() {
   echo "Usage:"
-  echo "  transit -ttyUSB3   # включить транзит"
-  echo "  transit -status    # статус"
-  echo "  transit -stop      # отключить"
+  echo "  transit -ttyUSB3"
+  echo "  transit -status"
+  echo "  transit -stop"
   exit 1
-}
-
-stop_services() {
-  echo "Остановка сервисов..."
-  for s in "${SERVICES[@]}"; do
-    if systemctl list-unit-files | grep -q "^$s.service"; then
-      systemctl stop "$s"
-      echo "  stopped $s"
-    fi
-  done
-}
-
-start_services() {
-  echo "Запуск сервисов..."
-  for s in "${SERVICES[@]}"; do
-    if systemctl list-unit-files | grep -q "^$s.service"; then
-      systemctl start "$s"
-      echo "  started $s"
-    fi
-  done
 }
 
 get_ip() {
@@ -50,26 +35,46 @@ get_ip() {
   fi
 }
 
+stop_services() {
+  for s in "${SERVICES[@]}"; do
+    systemctl stop "$s" 2>/dev/null
+  done
+}
+
+start_services() {
+  for s in "${SERVICES[@]}"; do
+    systemctl start "$s" 2>/dev/null
+  done
+}
+
 start_transit() {
   DEV="$1"
-  PIDFILE="$RUNDIR/${DEV}.pid"
 
   if [[ -f "$PIDFILE" ]]; then
-    echo "Транзит уже активен для $DEV"
+    echo "Транзит уже активен"
     exit 1
   fi
 
   stop_services
+  systemctl stop ser2net 2>/dev/null
 
-  echo "Запуск socat..."
-  echo "$(date) START /dev/$DEV" >> "$LOGFILE"
+  cat > "$CFG" <<EOF
+%YAML 1.1
+---
 
-  socat TCP-LISTEN:$PORT,reuseaddr,fork \
-        FILE:/dev/$DEV,raw,echo=0,b115200 \
-        2>>"$LOGFILE" &
+connection: &rs485
+  accepter: tcp,$PORT
+  connector: serialdev,/dev/$DEV,$BAUD$MODE,local
+  options:
+    max-connections: 1
+    kickolduser: true
+    nodelay: true
+EOF
 
-  SOCAT_PID=$!
-  echo "$SOCAT_PID" > "$PIDFILE"
+  systemctl restart ser2net
+
+  echo "$DEV" > "$PIDFILE"
+  echo "$(date) START $DEV" >> "$LOG"
 
   IP=$(get_ip)
   echo "Включен транзитный режим RS485 на /dev/$DEV"
@@ -77,48 +82,32 @@ start_transit() {
 }
 
 stop_transit() {
-  FOUND=0
-  for f in "$RUNDIR"/*.pid; do
-    [[ -e "$f" ]] || continue
-    DEV=$(basename "$f" .pid)
-    PID=$(cat "$f")
-
-    kill "$PID" 2>/dev/null
-    rm -f "$f"
-
-    echo "$(date) STOP /dev/$DEV" >> "$LOGFILE"
-    FOUND=1
-  done
-
-  if [[ $FOUND -eq 0 ]]; then
-    echo "Активных транзитов нет"
-  else
-    echo "Транзит остановлен"
+  if [[ ! -f "$PIDFILE" ]]; then
+    echo "Транзит не активен"
+    exit 0
   fi
 
+  DEV=$(cat "$PIDFILE")
+
+  systemctl stop ser2net
+  rm -f "$PIDFILE"
+
   start_services
+
+  echo "$(date) STOP $DEV" >> "$LOG"
+  echo "Транзит остановлен"
 }
 
 status_transit() {
-  FOUND=0
-  for f in "$RUNDIR"/*.pid; do
-    [[ -e "$f" ]] || continue
-    DEV=$(basename "$f" .pid)
-    IP=$(get_ip)
-    echo "Включен транзитный режим RS485 на /dev/$DEV. Доступ по $IP:$PORT"
-    FOUND=1
-  done
-
-  if [[ $FOUND -eq 0 ]]; then
+  if [[ ! -f "$PIDFILE" ]]; then
     echo "Транзит не активен"
+    exit 0
   fi
+
+  DEV=$(cat "$PIDFILE")
+  IP=$(get_ip)
+  echo "Включен транзитный режим RS485 на /dev/$DEV. Доступ по $IP:$PORT"
 }
-
-# ---- MAIN ----
-
-if [[ $# -eq 0 ]]; then
-  usage
-fi
 
 case "$1" in
   -ttyUSB*)
