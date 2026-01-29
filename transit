@@ -35,14 +35,16 @@ get_ip() {
 }
 
 stop_services() {
+  echo "Остановка сервисов..."
   for s in "${SERVICES[@]}"; do
-    systemctl stop "$s" 2>/dev/null
+    systemctl stop "$s" 2>/dev/null && echo "  stopped $s"
   done
 }
 
 start_services() {
+  echo "Запуск сервисов..."
   for s in "${SERVICES[@]}"; do
-    systemctl start "$s" 2>/dev/null
+    systemctl start "$s" 2>/dev/null && echo "  started $s"
   done
 }
 
@@ -50,21 +52,29 @@ start_transit() {
   DEV="$1"
 
   if [[ -f "$PIDFILE" ]]; then
-    echo "Транзит уже активен"
-    exit 1
+    PID=$(cat "$PIDFILE")
+    if kill -0 "$PID" 2>/dev/null; then
+      echo "Транзит уже активен"
+      exit 1
+    else
+      rm -f "$PIDFILE"
+    fi
   fi
 
   stop_services
 
   echo "$DEV" > "$DEVFILE"
 
+  echo "Запуск mbusd..."
   mbusd -d /dev/$DEV -b $BAUD -P $PARITY -s $STOPBITS -p $PORT &
-  echo $! > "$PIDFILE"
+  PID=$!
+  echo $PID > "$PIDFILE"
 
   sleep 1
 
-  if ! kill -0 $(cat "$PIDFILE") 2>/dev/null; then
+  if ! kill -0 "$PID" 2>/dev/null; then
     echo "Ошибка запуска mbusd"
+    rm -f "$PIDFILE"
     exit 1
   fi
 
@@ -79,15 +89,25 @@ stop_transit() {
     exit 0
   fi
 
-  kill $(cat "$PIDFILE") 2>/dev/null
-  rm -f "$PIDFILE" "$DEVFILE"
+  PID=$(cat "$PIDFILE")
 
+  if kill -0 "$PID" 2>/dev/null; then
+    kill "$PID"
+    echo "mbusd остановлен"
+  fi
+
+  rm -f "$PIDFILE" "$DEVFILE"
   start_services
-  echo "Транзит остановлен"
 }
 
 status_transit() {
-  if [[ ! -f "$DEVFILE" ]]; then
+  if [[ ! -f "$PIDFILE" ]]; then
+    echo "Транзит не активен"
+    exit 0
+  fi
+
+  PID=$(cat "$PIDFILE")
+  if ! kill -0 "$PID" 2>/dev/null; then
     echo "Транзит не активен"
     exit 0
   fi
