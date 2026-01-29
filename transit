@@ -19,25 +19,21 @@ usage() {
 }
 
 stop_services() {
-  echo "Остановка сервисов..."
-  for S in "${SERVICES[@]}"; do
-    if systemctl list-unit-files | grep -q "^$S.service"; then
-      systemctl stop "$S" 2>/dev/null
-      systemctl disable "$S" 2>/dev/null
-      echo "  stopped $S"
-    fi
+  for s in "${SERVICES[@]}"; do
+    systemctl stop "$s" 2>/dev/null
+    systemctl disable "$s" 2>/dev/null
   done
 }
 
 start_services() {
-  echo "Запуск сервисов..."
-  for S in "${SERVICES[@]}"; do
-    if systemctl list-unit-files | grep -q "^$S.service"; then
-      systemctl enable "$S" 2>/dev/null
-      systemctl start "$S" 2>/dev/null
-      echo "  started $S"
-    fi
+  for s in "${SERVICES[@]}"; do
+    systemctl enable "$s" 2>/dev/null
+    systemctl start "$s" 2>/dev/null
   done
+}
+
+get_ip() {
+  hostname -I | awk '{print $1}'
 }
 
 if [[ $# -eq 0 ]]; then usage; fi
@@ -46,7 +42,6 @@ case "$1" in
 
   -ttyUSB*)
     DEV="/dev/${1#-}"
-    LOCK="$LOCKDIR/${1#-}.lock"
     PIDFILE="$RUNDIR/${1#-}.pid"
 
     if [[ -f "$PIDFILE" ]]; then
@@ -54,19 +49,22 @@ case "$1" in
       exit 1
     fi
 
+    if [[ ! -e "$DEV" ]]; then
+      echo "Устройство $DEV не найдено"
+      exit 1
+    fi
+
+    echo "Остановка сервисов..."
     stop_services
 
-    # ЖЕСТКАЯ НАСТРОЙКА ПОРТА RS485 (115200 8N1 RAW)
-    stty -F "$DEV" 115200 cs8 -cstopb -parenb -ixon -ixoff -crtscts raw -echo
-
-    # Запускаем socat под flock
-    flock "$LOCK" \
-      socat TCP-LISTEN:$PORT,reuseaddr,fork \
-            FILE:$DEV,raw,echo=0,nonblock &
-
+    echo "Запуск mbusd..."
+    mbusd -d "$DEV" -s 115200 -b 8 -P none -m rtu -p $PORT &
     echo $! > "$PIDFILE"
 
-    IP=$(echo $SSH_CONNECTION | awk '{print $3}')
+    sleep 1
+
+    IP=$(get_ip)
+
     echo "Включен транзитный режим RS485 на $DEV"
     echo "Доступ по $IP:$PORT"
     ;;
@@ -75,7 +73,7 @@ case "$1" in
     if ls $RUNDIR/*.pid &>/dev/null; then
       for f in $RUNDIR/*.pid; do
         DEV=$(basename "$f" .pid)
-        IP=$(echo $SSH_CONNECTION | awk '{print $3}')
+        IP=$(get_ip)
         echo "Включен транзитный режим RS485 на /dev/$DEV. Доступ по $IP:$PORT"
       done
     else
@@ -85,7 +83,7 @@ case "$1" in
 
   -stop)
     for f in $RUNDIR/*.pid; do
-      kill "$(cat $f)" 2>/dev/null
+      kill "$(cat "$f")" 2>/dev/null
       rm -f "$f"
     done
 
