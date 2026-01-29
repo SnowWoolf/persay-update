@@ -18,53 +18,34 @@ usage() {
   exit 1
 }
 
-stop_services() {
-  for s in "${SERVICES[@]}"; do
-    systemctl stop "$s" 2>/dev/null
-    systemctl disable "$s" 2>/dev/null
-  done
-}
-
-start_services() {
-  for s in "${SERVICES[@]}"; do
-    systemctl enable "$s" 2>/dev/null
-    systemctl start "$s" 2>/dev/null
-  done
-}
-
-get_ip() {
-  hostname -I | awk '{print $1}'
-}
-
-if [[ $# -eq 0 ]]; then usage; fi
+[[ $# -eq 0 ]] && usage
 
 case "$1" in
 
   -ttyUSB*)
     DEV="/dev/${1#-}"
-    PIDFILE="$RUNDIR/${1#-}.pid"
+    NAME="${1#-}"
+    LOCK="$LOCKDIR/$NAME.lock"
+    PIDFILE="$RUNDIR/$NAME.pid"
 
-    if [[ -f "$PIDFILE" ]]; then
-      echo "Транзит уже включен"
-      exit 1
-    fi
-
-    if [[ ! -e "$DEV" ]]; then
-      echo "Устройство $DEV не найдено"
-      exit 1
-    fi
+    [[ -f "$PIDFILE" ]] && { echo "Транзит уже включен"; exit 1; }
 
     echo "Остановка сервисов..."
-    stop_services
+    for S in "${SERVICES[@]}"; do
+      systemctl stop "$S" 2>/dev/null
+      systemctl mask "$S" 2>/dev/null
+    done
 
-    echo "Запуск mbusd..."
-    mbusd -p "$DEV" -s 115200 -t $PORT &
+    echo "Запуск socat..."
+
+    flock "$LOCK" socat \
+      TCP-LISTEN:$PORT,reuseaddr,fork \
+      FILE:$DEV,raw,echo=0,b115200,cs8,parenb=0,cstopb=0,ixon=0,ixoff=0,crtscts=0 \
+      &
+
     echo $! > "$PIDFILE"
 
-    sleep 1
-
-    IP=$(get_ip)
-
+    IP=$(echo $SSH_CONNECTION | awk '{print $3}')
     echo "Включен транзитный режим RS485 на $DEV"
     echo "Доступ по $IP:$PORT"
     ;;
@@ -73,7 +54,7 @@ case "$1" in
     if ls $RUNDIR/*.pid &>/dev/null; then
       for f in $RUNDIR/*.pid; do
         DEV=$(basename "$f" .pid)
-        IP=$(get_ip)
+        IP=$(echo $SSH_CONNECTION | awk '{print $3}')
         echo "Включен транзитный режим RS485 на /dev/$DEV. Доступ по $IP:$PORT"
       done
     else
@@ -83,11 +64,15 @@ case "$1" in
 
   -stop)
     for f in $RUNDIR/*.pid; do
-      kill "$(cat "$f")" 2>/dev/null
+      kill "$(cat $f)" 2>/dev/null
       rm -f "$f"
     done
 
-    start_services
+    for S in "${SERVICES[@]}"; do
+      systemctl unmask "$S" 2>/dev/null
+      systemctl start "$S" 2>/dev/null
+    done
+
     echo "Транзит отключен, порт освобожден"
     ;;
 
