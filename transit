@@ -1,46 +1,41 @@
-#!/bin/sh
+#!/bin/bash
 
-# ===== ПАРАМЕТР ПОРТА =====
+PORT=777
 TTY="$1"
 
-if [ -z "$TTY" ]; then
-    echo "Использование: transit -ttyUSB3"
-    exit 1
+if [[ -z "$TTY" ]]; then
+  echo "Использование: transit -ttyUSB3"
+  exit 1
 fi
 
-# убираем лишнее
 TTY="${TTY#-}"
 TTY="${TTY#/dev/}"
 TTY="/dev/$TTY"
 
-# ===== СЕРВИСЫ КОТОРЫЕ МОЖНО ОСТАНАВЛИВАТЬ =====
-SERVICES="
-agrosmart_web
-agrosmart_sync
-agrosmart_mix
-persay
-"
+SERVICES=(
+  agrosmart_web
+  agrosmart_sync
+  agrosmart_mix
+  persay
+)
 
 echo "Остановка сервисов..."
-
-for S in $SERVICES; do
-    systemctl stop "$S" 2>/dev/null
+for S in "${SERVICES[@]}"; do
+  systemctl stop "$S" 2>/dev/null
 done
 
-# ===== УБИВАЕМ СТАРЫЙ MBUSD =====
-pkill mbusd 2>/dev/null
+echo "Убиваем старые socat..."
+pkill socat 2>/dev/null
 sleep 1
 
-echo "Запуск mbusd..."
+echo "Запуск socat..."
 
-# ===== ЗАПУСК MBUSD =====
-# 115200 8E1 — КРИТИЧНО!
-mbusd -p "$TTY" -s 115200 -m 8E1 -t 777 >/dev/null 2>&1 &
+socat TCP-LISTEN:$PORT,reuseaddr,fork \
+      FILE:$TTY,raw,echo=0,b115200,cs8,parenb,parodd=0,cstopb=0 &
 
 sleep 1
 
-# ===== IP =====
 IP=$(hostname -I | awk '{print $1}')
 
 echo "Включен транзитный режим RS485 на $TTY"
-echo "Доступ по $IP:777"
+echo "Доступ по $IP:$PORT"
