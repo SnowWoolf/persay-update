@@ -3,13 +3,7 @@
 PORT=777
 TTY="$1"
 
-if [[ -z "$TTY" ]]; then
-  echo "Использование: transit -ttyUSB3"
-  exit 1
-fi
-
 TTY="${TTY#-}"
-TTY="${TTY#/dev/}"
 TTY="/dev/$TTY"
 
 SERVICES=(
@@ -19,21 +13,33 @@ SERVICES=(
   persay
 )
 
+if ! command -v socat >/dev/null; then
+  echo "socat не установлен!"
+  exit 1
+fi
+
 echo "Остановка сервисов..."
 for S in "${SERVICES[@]}"; do
   systemctl stop "$S" 2>/dev/null
 done
 
-echo "Убиваем старые socat..."
 pkill socat 2>/dev/null
 sleep 1
 
 echo "Запуск socat..."
 
 socat TCP-LISTEN:$PORT,reuseaddr,fork \
-      FILE:$TTY,raw,echo=0,b115200,cs8,parenb,parodd=0,cstopb=0 &
+      FILE:$TTY,raw,echo=0,b115200,cs8,parenb,parodd=0,cstopb=0 \
+      >/tmp/socat.log 2>&1 &
 
 sleep 1
+
+if ! ss -ltnp | grep -q $PORT; then
+  echo "socat не запустился!"
+  echo "Лог:"
+  cat /tmp/socat.log
+  exit 1
+fi
 
 IP=$(hostname -I | awk '{print $1}')
 
