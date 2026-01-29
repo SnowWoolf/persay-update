@@ -58,7 +58,7 @@ case "$1" in
     stop_services
 
     echo "Запуск mbusd..."
-    mbusd -d "$DEV" -s 115200 -b 8 -P none -m rtu -p $PORT &
+    mbusd -p "$DEV" -s 115200 -t $PORT &
     echo $! > "$PIDFILE"
 
     sleep 1
