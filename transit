@@ -26,8 +26,10 @@ case "$1" in
     fi
 
     # Останавливаем основной сервис
-    systemctl stop persay
+    systemctl stop agrosmart_web
     systemctl stop agrosmart_sync
+    systemctl stop agrosmart_mix
+    systemctl stop persay
 
     # Запускаем socat под flock
     flock "$LOCK" \
@@ -59,8 +61,10 @@ case "$1" in
       rm -f "$f"
     done
 
-     systemctl start persay
-     systemctl start agrosmart_sync
+    systemctl start agrosmart_web
+    systemctl start agrosmart_sync
+    systemctl start agrosmart_mix
+    systemctl start persay
     echo "Транзит отключен, порт освобожден"
     ;;
 
