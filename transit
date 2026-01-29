@@ -1,7 +1,8 @@
 #!/bin/bash
 
-STATE_FILE="/var/run/transit.state"
 PORT=777
+STATE_FILE="/tmp/transit.state"
+PID_FILE="/tmp/transit.pid"
 
 SERVICES=(
   agrosmart_web
@@ -10,96 +11,101 @@ SERVICES=(
   persay
 )
 
-get_ip() {
-  if [ -n "$SSH_CLIENT" ]; then
-    echo "$SSH_CLIENT" | awk '{print $1}'
-  else
-    hostname -I | awk '{print $1}'
-  fi
-}
-
 stop_services() {
   echo "Остановка сервисов..."
-  for s in "${SERVICES[@]}"; do
-    systemctl stop "$s" 2>/dev/null && echo "  stopped $s"
+  for S in "${SERVICES[@]}"; do
+    if systemctl list-unit-files | grep -q "^$S.service"; then
+      systemctl stop "$S" 2>/dev/null
+      echo "  stopped $S"
+    fi
   done
 }
 
 start_services() {
   echo "Запуск сервисов..."
-  for s in "${SERVICES[@]}"; do
-    systemctl start "$s" 2>/dev/null && echo "  started $s"
+  for S in "${SERVICES[@]}"; do
+    if systemctl list-unit-files | grep -q "^$S.service"; then
+      systemctl start "$S" 2>/dev/null
+      echo "  started $S"
+    fi
   done
 }
 
-start_mbusd() {
-  DEV="$1"
+get_ip() {
+  who | awk '{print $5}' | tr -d '()' | head -n1
+}
 
-  # убиваем старый если висит
-  pkill mbusd 2>/dev/null
+status() {
+  if [ -f "$STATE_FILE" ]; then
+    DEV=$(cat "$STATE_FILE")
+    IP=$(get_ip)
+    echo "Включен транзитный режим RS485 на $DEV. Доступ по $IP:$PORT"
+  else
+    echo "Транзит не активен"
+  fi
+}
 
-  mbusd -p "$DEV" -s 115200 -t $PORT >/dev/null 2>&1 &
+stop_transit() {
+  if [ ! -f "$STATE_FILE" ]; then
+    echo "Транзит не активен"
+    exit 0
+  fi
+
+  if [ -f "$PID_FILE" ]; then
+    kill "$(cat $PID_FILE)" 2>/dev/null
+    rm -f "$PID_FILE"
+  fi
+
+  rm -f "$STATE_FILE"
+
+  start_services
+  echo "Транзит отключен"
+}
+
+start_transit() {
+  DEV="/dev/$1"
+
+  if [ ! -e "$DEV" ]; then
+    echo "Устройство $DEV не найдено"
+    exit 1
+  fi
+
+  if [ -f "$STATE_FILE" ]; then
+    echo "Транзит уже активен"
+    status
+    exit 0
+  fi
+
+  stop_services
+
+  echo "$DEV" > "$STATE_FILE"
+
+  # запуск mbusd в фоне
+  mbusd -p "$DEV" -s 115200 -t $PORT &
+  echo $! > "$PID_FILE"
+
   sleep 1
-}
 
-stop_mbusd() {
-  pkill mbusd 2>/dev/null
-}
-
-is_mbusd_running() {
-  pgrep mbusd >/dev/null 2>&1
+  IP=$(get_ip)
+  echo "Включен транзитный режим RS485 на $DEV"
+  echo "Доступ по $IP:$PORT"
 }
 
 case "$1" in
-
-  -ttyUSB*)
-    DEV="/dev/${1#-}"
-
-    if [ ! -e "$DEV" ]; then
-      echo "Устройство $DEV не найдено"
-      exit 1
-    fi
-
-    stop_services
-    start_mbusd "$DEV"
-
-    if is_mbusd_running; then
-      echo "$DEV" > "$STATE_FILE"
-      IP=$(get_ip)
-      echo "Включен транзитный режим RS485 на $DEV"
-      echo "Доступ по $IP:$PORT"
-    else
-      echo "Ошибка запуска mbusd"
-      exit 1
-    fi
-    ;;
-
   -status)
-    if [ -f "$STATE_FILE" ] && is_mbusd_running; then
-      DEV=$(cat "$STATE_FILE")
-      IP=$(get_ip)
-      echo "Включен транзитный режим RS485 на $DEV. Доступ по $IP:$PORT"
-    else
-      echo "Транзит не активен"
-    fi
+    status
     ;;
-
   -stop)
-    if is_mbusd_running; then
-      stop_mbusd
-      rm -f "$STATE_FILE"
-      start_services
-      echo "Транзит отключен"
-    else
-      echo "Транзит не активен"
-    fi
+    stop_transit
     ;;
-
+  -tty*)
+    DEV_NAME="${1#-}"
+    start_transit "$DEV_NAME"
+    ;;
   *)
     echo "Использование:"
     echo "  transit -ttyUSB3   включить транзит"
     echo "  transit -status    статус"
     echo "  transit -stop      выключить транзит"
     ;;
-
 esac
