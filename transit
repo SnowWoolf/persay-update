@@ -11,7 +11,11 @@ SERVICES=(
 )
 
 get_ip() {
-  who | awk '{print $5}' | sed 's/[()]//g' | head -n1
+  if [ -n "$SSH_CLIENT" ]; then
+    echo "$SSH_CLIENT" | awk '{print $1}'
+  else
+    hostname -I | awk '{print $1}'
+  fi
 }
 
 stop_services() {
