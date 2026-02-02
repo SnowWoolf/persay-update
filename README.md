@@ -15,17 +15,15 @@ curl -fsSL https://raw.githubusercontent.com/SnowWoolf/persay-update/main/instal
 ```bash
 apt install mosquitto
 ```
-Настройка (проверить/добавить строки):
-```bash
-nano /etc/mosquitto/mosquitto.conf
-```
-```bash
-listener 1883
-allow_anonymous true
-```
 Открываем брокеру дыру в сеть:
 ```bash
 rm /etc/mosquitto/conf.d/10-localhost-only.conf
+nano /etc/mosquitto/conf.d/20-external.conf
+
+Вставить строки:
+    listener 1883
+    allow_anonymous true
+
 systemctl restart mosquitto
 ```
 
