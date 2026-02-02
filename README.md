@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/SnowWoolf/persay-update/main/instal
 ```bash
 apt install mosquitto
 ```
-Настройка (проверить/длобавить строки):
+Настройка (проверить/добавить строки):
 ```bash
 nano /etc/mosquitto/mosquitto.conf
 ```
