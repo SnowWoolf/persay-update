@@ -23,6 +23,11 @@ nano /etc/mosquitto/mosquitto.conf
 listener 1883
 allow_anonymous true
 ```
+Открываем брокеру дыру в сеть:
+```bash
+rm /etc/mosquitto/conf.d/10-localhost-only.conf
+systemctl restart mosquitto
+```
 
 Проверка статуса (должен быть active (running)):
 ```bash
