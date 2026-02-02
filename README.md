@@ -31,8 +31,10 @@ systemctl restart mosquitto
 ```bash
 systemctl status mosquitto
 ```
-
-
+Проверяем: mosquitto слушает порт 1883
+```bash
+ss -lntp | grep 1883
+```
 ---
 
 ## Обновление
