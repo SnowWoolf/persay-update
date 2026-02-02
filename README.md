@@ -11,7 +11,7 @@
 curl -fsSL https://raw.githubusercontent.com/SnowWoolf/persay-update/main/install_persay.sh | bash
 ```
 
-Дополнительно: установить MQTT-брокер:
+### Дополнительно: установить MQTT-брокер:
 ```bash
 apt install mosquitto
 ```
