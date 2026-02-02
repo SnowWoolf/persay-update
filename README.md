@@ -19,6 +19,12 @@ apt install mosquitto
 ```bash
 nano /etc/mosquitto/mosquitto.conf
 ```
+Добавить строки:
+```bash
+listener 1883
+allow_anonymous true
+```
+
 Проверка статуса (должен быть active (running)):
 ```bash
 systemctl status mosquitto
