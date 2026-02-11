@@ -89,7 +89,7 @@ persay-update
 
 
 
-Читать журнал сервиса:
+##Читать журнал сервиса:
 ```
 journalctl -u persay -f
 ```
