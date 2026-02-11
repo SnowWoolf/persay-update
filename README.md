@@ -91,6 +91,6 @@ persay-update
 
 Читать журнал сервиса:
 ```
- journalctl -u persay -f
+journalctl -u persay -f
 ```
 
