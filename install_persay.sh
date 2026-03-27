@@ -55,7 +55,7 @@ fi
 
 echo "[INFO] Создание виртуального окружения Python"
 if [ ! -d "venv" ]; then
-  python3 -m venv venv
+  python3.8 -m venv venv
 fi
 
 if [ -f "requirements.txt" ]; then
