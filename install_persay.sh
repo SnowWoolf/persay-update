@@ -9,7 +9,7 @@ SERVICE_FILE="/etc/systemd/system/persay.service"
 UPDATE_URL="https://raw.githubusercontent.com/SnowWoolf/persay-update/main/persay-update"
 UPDATE_BIN="/usr/local/bin/persay-update"
 
-REQUIRED_PACKAGES="git curl python3 python3-venv python3-pip"
+REQUIRED_PACKAGES="git curl python3.8 python3.8-venv python3.8-dev python3-pip build-essential"
 ################
 
 echo "[INFO] Проверка системы"
@@ -40,6 +40,11 @@ for pkg in $REQUIRED_PACKAGES; do
   fi
 done
 
+if ! command -v python3.8 >/dev/null 2>&1; then
+  echo "[ERROR] Python 3.8 не найден в системе"
+  exit 1
+fi
+
 echo "[INFO] Подготовка директории приложения"
 mkdir -p "$APP_DIR"
 cd "$APP_DIR"
@@ -57,6 +62,9 @@ echo "[INFO] Создание виртуального окружения Python
 if [ ! -d "venv" ]; then
   python3.8 -m venv venv
 fi
+
+echo "[INFO] Обновление pip/setuptools/wheel"
+venv/bin/pip install --upgrade pip setuptools wheel
 
 if [ -f "requirements.txt" ]; then
   echo "[INFO] Установка Python-зависимостей"
